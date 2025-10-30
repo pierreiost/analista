@@ -88,7 +88,7 @@ class AnalistaQuantitativoXG:
 
         # 5. Inicializar o Modelo Generativo (Cliente)
         self.client = genai.GenerativeModel(
-            model_name="gemini-1.5-pro-latest", # Ou "gemini-pro" se preferir
+            model_name="gemini-pro", # Ou "gemini-pro" se preferir
             system_instruction=system_instruction,
             generation_config=self.generation_config,
             safety_settings=self.safety_settings
