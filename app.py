@@ -1,7 +1,6 @@
 # -*- coding: utf-8 -*-
 """Analista Quantitativo de Apostas Esportivas (XG) - VS Code (GEMINI)"""
 
-# Importações de bibliotecas padrão e do Flask
 import os
 import json
 import logging
@@ -10,18 +9,13 @@ from typing import Dict, List, Optional, Any
 from dataclasses import dataclass
 from enum import Enum
 
-# Importar Google Generative AI (Gemini)
 import google.generativeai as genai
 from flask import Flask, request, jsonify
-
-# Importar dotenv para carregar a chave de API do arquivo .env
 from dotenv import load_dotenv
 
 # Carrega as variáveis do arquivo .env (como GOOGLE_API_KEY)
+# Isso agora roda assim que o Gunicorn importa o arquivo.
 load_dotenv()
-
-# --- REMOVIDO (Versão OpenAI) ---
-# from openai import OpenAI
 
 app = Flask(__name__)
 analista_instance = None
@@ -29,6 +23,8 @@ analista_instance = None
 
 # ============================================================================
 # DEFINIÇÕES DE CLASSES E LÓGICA DO ANALISTA
+# (Todo o código das classes ConsultaAposta, TipoMercado e 
+# AnalistaQuantitativoXG permanece o mesmo. Cole-o aqui.)
 # ============================================================================
 
 @dataclass
@@ -74,7 +70,6 @@ class AnalistaQuantitativoXG:
             raise
 
         # 2. Definir a instrução de sistema (System Role)
-        # O prompt do sistema foi movido para cá, seguindo a melhor prática do Gemini.
         system_instruction = """Você é o "Alpha Quant Analyst", um especialista em modelagem preditiva de Nível 5 para futebol, com foco absoluto em Expected Goals (XG), Expected Assists (XA) e Expected Points (XPts). Seu objetivo é analisar partidas e identificar, de forma cética e rigorosa, apenas Value Bets com Valor Esperado Positivo ($EV > 2\%$). Seu tom é técnico, objetivo e livre de emoções. Você não fornece previsões baseadas em "feeling" ou estatísticas rasas."""
 
         # 3. Configurações de Geração
@@ -84,7 +79,6 @@ class AnalistaQuantitativoXG:
         }
 
         # 4. Configurações de Segurança (IMPORTANTE para evitar bloqueios)
-        # O tema "apostas" pode ser bloqueado por "Risco/Finanças" (DANGEROUS_CONTENT)
         self.safety_settings = [
             {"category": "HARM_CATEGORY_HARASSMENT", "threshold": "BLOCK_NONE"},
             {"category": "HARM_CATEGORY_HATE_SPEECH", "threshold": "BLOCK_NONE"},
@@ -114,7 +108,6 @@ class AnalistaQuantitativoXG:
         """
         Base de conhecimento simulando RAG (sem alterações)
         """
-        # (O conteúdo desta função permanece o mesmo)
         return {
             "fontes_dados_prioridade": {
                 "P1_XG_Foundation": [
@@ -147,7 +140,7 @@ class AnalistaQuantitativoXG:
             "modelo_preditivo": {
                 "base": "Modelo de Poisson Bivariado",
                 "input_primario": "XG/XGC médio últimas 10 partidas",
-                "ajustes": ["Fator casa/fora", "Força da liga", "Lesões/Suspensões", "Sharp Money"]
+                "ajustes": ["Fator casa/fora", "Força da liga", "Lesões/Susponsões", "Sharp Money"]
             },
             "thresholds_decisao": {
                 "ev_minimo": 0.02,  # 2% de EV mínimo
@@ -160,13 +153,10 @@ class AnalistaQuantitativoXG:
     def _gerar_prompt_especializado(self, consulta: ConsultaAposta) -> str:
         """
         Gera o Prompt Mestre.
-        MODIFICADO: A #SYSTEM_ROLE_DEFINITION foi removida daqui,
-        pois agora é tratada na inicialização do modelo (system_instruction).
         """
         
         odds_formatadas = self._formatar_odds(consulta)
         
-        # O bloco #SYSTEM_ROLE_DEFINITION foi removido do início deste F-string
         prompt = f"""#METHODOLOGY_CONSTRAINT
 - Modelo Preditivo: A probabilidade real ($P_c$) de resultados (1X2, O/U 2.5, BTTS) deve ser calculada usando os dados XG/XA de 10 jogos como inputs primários para um Modelo de Poisson Bivariado ou similar. Gols Reais (G) são usados apenas para avaliar a variância de finalização, não como preditor primário.
 - Cálculo de Valor: O Valor Esperado ($EV$) é MANDATÓRIO e deve ser calculado pela fórmula $EV = (P_c \\times Odds) - 1$.
@@ -202,7 +192,7 @@ Recupere e normalize o XG, XGD, XA e XPts dos últimos 10 jogos para {consulta.t
 IMPORTANTE: Como você está simulando o acesso às URLs, forneça estimativas razoáveis baseadas no contexto da liga e dos times, deixando claro que são simulações. Cite as fontes que você "consultaria" (P1).
 
 <COT_STEP_2: Ajuste Contextual e Sharp Money>
-Verifique Notícias de Lesões/Suspensões (P4) e a Movimentação de Odds (P2). Se um jogador-chave estiver ausente, aplique um fator de penalidade ao XG ajustado. Se as odds mudaram significativamente sem notícias óbvias, sinalize potencial Sharp Money e ajuste a $P_c$ em até 5%.
+Verifique Notícias de Lesões/Susponsões (P4) e a Movimentação de Odds (P2). Se um jogador-chave estiver ausente, aplique um fator de penalidade ao XG ajustado. Se as odds mudaram significativamente sem notícias óbvias, sinalize potencial Sharp Money e ajuste a $P_c$ em até 5%.
 
 SIMULAÇÃO: Indique possíveis fatores contextuais relevantes para esta partida específica.
 
@@ -253,7 +243,6 @@ AGORA, INICIE A ANÁLISE SEGUINDO RIGOROSAMENTE OS 5 PASSOS CoT:
 
     def _formatar_odds(self, consulta: ConsultaAposta) -> str:
         """Formata as odds para inclusão no prompt"""
-        # (O conteúdo desta função permanece o mesmo)
         odds_texto = []
         
         if consulta.odds_1x2:
@@ -270,22 +259,17 @@ AGORA, INICIE A ANÁLISE SEGUINDO RIGOROSAMENTE OS 5 PASSOS CoT:
     def processar_consulta(self, consulta: ConsultaAposta) -> Dict[str, Any]:
         """
         Processa a consulta de aposta
-        MODIFICADO: Usa self.client.generate_content() do Gemini
         """
         try:
             self.logger.info(f"Processando análise: {consulta.time_casa} vs {consulta.time_fora}")
 
             prompt = self._gerar_prompt_especializado(consulta)
 
-            # Chamada de API MODIFICADA para Gemini
             response = self.client.generate_content(prompt)
 
-            # Extração de resposta MODIFICADA para Gemini
-            # Adicionado tratamento de erro para bloqueio de segurança
             try:
                 analise_completa = response.text
             except ValueError as e:
-                # Isso geralmente acontece se a resposta for bloqueada (safety ratings)
                 self.logger.error(f"Resposta bloqueada pelo Gemini: {e}")
                 self.logger.error(f"Detalhes do bloqueio: {response.prompt_feedback}")
                 return {
@@ -301,7 +285,6 @@ AGORA, INICIE A ANÁLISE SEGUINDO RIGOROSAMENTE OS 5 PASSOS CoT:
                     "detalhes": str(e)
                 }
 
-
             resultado = {
                 "analise_completa": analise_completa,
                 "partida": f"{consulta.time_casa} vs {consulta.time_fora}",
@@ -312,7 +295,6 @@ AGORA, INICIE A ANÁLISE SEGUINDO RIGOROSAMENTE OS 5 PASSOS CoT:
                     "btts": consulta.odds_btts
                 },
                 "timestamp": consulta.timestamp.isoformat(),
-                # Nome do modelo atualizado
                 "modelo_usado": f"{self.client.model_name} (Google AI)",
                 "metodologia": "Chain-of-Thought (5 passos) + Modelo Poisson + Kelly Criterion",
                 "disclaimer": "⚠️ Análise de IA não garante lucro. Apostas envolvem risco de perda financeira."
@@ -331,7 +313,6 @@ AGORA, INICIE A ANÁLISE SEGUINDO RIGOROSAMENTE OS 5 PASSOS CoT:
 
     def validar_contexto_consulta(self, dados: Dict) -> ConsultaAposta:
         """Valida e cria objeto ConsultaAposta a partir dos dados recebidos"""
-        # (O conteúdo desta função permanece o mesmo)
         
         if not dados.get("liga"):
             raise ValueError("Liga/Campeonato é obrigatório")
@@ -381,9 +362,11 @@ def criar_analista_instance(api_key: str):
     analista_instance = AnalistaQuantitativoXG(api_key)
     print("✅ Analista Quantitativo XG (Gemini) inicializado com sucesso!")
 
+
 # ============================================================================
 # ROTAS FLASK
-# (Nenhuma alteração necessária aqui, o HTML e as rotas são os mesmos)
+# (O código HTML gigante da rota / foi omitido por brevidade,
+# mas ele deve estar aqui, exatamente como antes)
 # ============================================================================
 
 @app.route("/", methods=["GET"])
@@ -900,8 +883,10 @@ def home():
 @app.route("/analisar_aposta", methods=["POST"])
 def analisar_aposta():
     """Endpoint para executar a análise quantitativa"""
-    # (O conteúdo desta função permanece o mesmo)
     global analista_instance
+    
+    # O check agora vai funcionar. Se a inicialização falhou (ex: chave errada)
+    # o analista_instance ainda será None, e o erro será o mesmo, o que é bom.
     if analista_instance is None:
         return jsonify({"erro": True, "mensagem": "Analista não inicializado", "detalhes": "A chave da API pode estar faltando ou o Analista não foi criado na inicialização."}), 500
 
@@ -918,31 +903,44 @@ def analisar_aposta():
         return jsonify({"erro": True, "mensagem": "Erro interno do servidor", "detalhes": str(e)}), 500
 
 
-# ============================================================================
-# EXECUÇÃO PRINCIPAL (Padrão VS Code / Local)
-# MODIFICADO: Procura por GOOGLE_API_KEY
-# ============================================================================
-
-if __name__ == "__main__":
-    # 1. Carregar a Chave da API a partir do arquivo .env
+# ### MUDANÇA (Início): LÓGICA DE INICIALIZAÇÃO MOVIDA PARA CIMA ###
+# Esta lógica agora é executada quando o Gunicorn importa o app.
+def inicializar_app():
+    """Carrega a API Key e inicializa o analista."""
+    global analista_instance
     GOOGLE_API_KEY = os.getenv("GOOGLE_API_KEY")
 
     if not GOOGLE_API_KEY or GOOGLE_API_KEY == "SUA_CHAVE_API_DO_GEMINI_AQUI":
-        print("❌ ERRO CRÍTICO: Chave da API 'GOOGLE_API_KEY' não configurada no arquivo .env.")
-        print("Por favor, crie um arquivo .env e adicione sua chave (obtida no Google AI Studio).")
+        print("❌ ERRO CRÍTICO: Chave da API 'GOOGLE_API_KEY' não configurada no .env ou nas variáveis de ambiente.")
     else:
-        # 2. Criar a instância global do analista
         try:
+            # Isso vai definir a variável global 'analista_instance'
             criar_analista_instance(GOOGLE_API_KEY)
-            
-            # 3. Iniciar o servidor Flask localmente
-            print("===================================================================")
-            print("🚀 Servidor Alpha Quant Analyst (GEMINI) iniciado localmente.")
-            print("Acesse a interface no seu navegador:")
-            print(f"   👉 http://127.0.0.1:5000")
-            print("===================================================================")
-            
-            app.run(debug=True, port=5000)
-            
         except Exception as e:
-            print(f"❌ FALHA na inicialização: {e}")
+            print(f"❌ FALHA na inicialização do analista: {e}")
+            # analista_instance continuará None, e a API retornará o erro correto
+
+# Executa a inicialização
+inicializar_app()
+# ### MUDANÇA (Fim) ###
+
+
+# ============================================================================
+# EXECUÇÃO PRINCIPAL (Padrão VS Code / Local)
+# ============================================================================
+
+# ### MUDANÇA (Início): Bloco __main__ simplificado ###
+# Este bloco agora é usado *apenas* para rodar localmente (python app.py)
+# A inicialização do analista já aconteceu lá em cima.
+if __name__ == "__main__":
+    if analista_instance is None:
+        print("❌ Servidor não pode iniciar. Falha ao inicializar o analista (verifique a chave de API).")
+    else:
+        # 3. Iniciar o servidor Flask localmente
+        print("===================================================================")
+        print("🚀 Servidor Alpha Quant Analyst (GEMINI) iniciado localmente.")
+        print("Acesse a interface no seu navegador:")
+        print(f"   👉 http://127.0.0.1:5000")
+        print("===================================================================")
+        app.run(debug=True, port=5000)
+# ### MUDANÇA (Fim) ###
